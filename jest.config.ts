@@ -89,8 +89,12 @@ const config: Config = {
   //   "node"
   // ],
 
+  extensionsToTreatAsEsm: [".ts"],
+
   // A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
-  // moduleNameMapper: {},
+  moduleNameMapper: {
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+  },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
   // modulePathIgnorePatterns: [],
@@ -102,7 +106,7 @@ const config: Config = {
   // notifyMode: "failure-change",
 
   // A preset that is used as a base for Jest's configuration
-  preset: "jest-dynalite",
+  preset: "ts-jest/presets/default-esm",
 
   // Run tests from one or more projects
   // projects: undefined,
@@ -137,8 +141,10 @@ const config: Config = {
   // setupFiles: [],
 
   // A list of paths to modules that run some code to configure or set up the testing framework before each test
-  // setupFilesAfterEnv: [],
-
+  setupFilesAfterEnv: [
+    "jest-dynalite/setupTables",
+    "jest-dynalite/clearAfterEach",
+  ],
   // The number of seconds after which a test is considered as slow and reported as such in the results.
   // slowTestThreshold: 5,
 
@@ -146,7 +152,7 @@ const config: Config = {
   // snapshotSerializers: [],
 
   // The test environment that will be used for testing
-  // testEnvironment: "jest-environment-node",
+  testEnvironment: "jest-dynalite/environment",
 
   // Options that will be passed to the testEnvironment
   // testEnvironmentOptions: {},
@@ -173,9 +179,9 @@ const config: Config = {
   // testRunner: "jest-circus/runner",
 
   // A map from regular expressions to paths to transformers
-  transform: {
-    "^.+\\.ts$": "ts-jest",
-  },
+  // transform: {
+  //   "^.+\\.ts$": "ts-jest",
+  // },
 
   // An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
   // transformIgnorePatterns: [

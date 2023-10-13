@@ -1,5 +1,5 @@
 import { Entity, EntityItem, QueryResponse, CreateEntityItem } from "electrodb";
-import { table, client } from "./config";
+import { table, client } from "./config.js";
 
 export const task = new Entity(
   {

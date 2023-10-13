@@ -1,9 +1,7 @@
-// import moment from "moment";
-// import { v4 as uuid } from "uuid";
 import { Temporal } from "@js-temporal/polyfill";
 import { randomUUID } from "node:crypto";
 import { Entity, EntityItem, QueryResponse, CreateEntityItem } from "electrodb";
-import { table, client } from "./config";
+import { table, client } from "./config.js";
 
 export const employee = new Entity(
   {

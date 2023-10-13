@@ -1,7 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
-import { taskManager } from "./";
-import { office } from "./Office";
+import { taskManager } from "./index.js";
+import { office } from "./Office.js";
 
 const client = new DynamoDBClient({
   endpoint: process.env.MOCK_DYNAMODB_ENDPOINT,
