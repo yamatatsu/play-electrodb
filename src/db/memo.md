@@ -1,0 +1,1 @@
+- [ ] sensorUnitId要らなくないか？numberが役割を果たすはず。
