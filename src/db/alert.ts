@@ -73,6 +73,7 @@ export default new Entity(
         sk: { field: "sk", composite: ["occurredAt"] },
       },
       device: {
+        index: "gsi1pk-gsi1sk-index",
         pk: { field: "gsi1pk", composite: ["gatewayId"] },
         sk: {
           field: "gsi1sk",
@@ -80,6 +81,7 @@ export default new Entity(
         },
       },
       status: {
+        index: "gsi2pk-gsi2sk-index",
         pk: { field: "gsi2pk", composite: ["workspaceId"] },
         sk: { field: "gsi3sk", composite: ["gatewayId", "status"] },
       },
