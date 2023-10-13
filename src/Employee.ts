@@ -13,26 +13,11 @@ export const employee = new Entity(
       service: "taskmanager",
     },
     attributes: {
-      employee: {
-        type: "string",
-        default: () => randomUUID(),
-      },
-      firstName: {
-        type: "string",
-        required: true,
-      },
-      lastName: {
-        type: "string",
-        required: true,
-      },
-      office: {
-        type: "string",
-        required: true,
-      },
-      title: {
-        type: "string",
-        required: true,
-      },
+      employee: { type: "string", default: () => randomUUID() },
+      firstName: { type: "string", required: true },
+      lastName: { type: "string", required: true },
+      office: { type: "string", required: true },
+      title: { type: "string", required: true },
       team: {
         type: [
           "development",
@@ -43,23 +28,19 @@ export const employee = new Entity(
         ] as const,
         required: true,
       },
-      salary: {
-        type: "string",
-        required: true,
-      },
-      manager: {
-        type: "string",
-      },
+      salary: { type: "string", required: true },
+      manager: { type: "string" },
       dateHired: {
         type: "string",
+        required: true,
         validate: (date: string) => {
-          Temporal.PlainDate.from(date);
+          date && Temporal.PlainDate.from(date);
         },
       },
       birthday: {
         type: "string",
         validate: (date: string) => {
-          Temporal.PlainDate.from(date);
+          date && Temporal.PlainDate.from(date);
         },
       },
     },

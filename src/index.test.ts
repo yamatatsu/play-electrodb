@@ -129,36 +129,48 @@ describe("collection", () => {
         address: "123 Main St.", // This is optional because not a part of the composite primary key.
       })
       .go();
-    // await taskManager.entities.employee
-    //   .create({
-    //     office: "HQ",
-    //     country: "USA",
-    //     state: "WA",
-    //     city: "Seattle",
-    //     zip: "98101",
-    //     address: "123 Main St.", // This is optional because not a part of the composite primary key.
-    //   })
-    //   .go();
+    await taskManager.entities.employee
+      .create({
+        office: "HQ",
+        firstName: "John",
+        lastName: "Doe",
+        team: "cool cats and kittens",
+        salary: "1",
+        title: "CEO",
+        dateHired: "2021-01-01",
+      })
+      .go();
 
     const result = await taskManager.collections
       .workplaces({ office: "HQ" })
       .go();
 
-    expect(result).toEqual([
-      {
-        pk: "$taskmanager#country_usa#state_wa",
-        sk: "$office_1#city_seattle#zip_98101#office_hq",
-        gsi1pk: "$taskmanager#office_hq",
-        gsi1sk: "$workplaces#office_1",
-        office: "HQ",
-        country: "USA",
-        state: "WA",
-        city: "Seattle",
-        zip: "98101",
-        address: "123 Main St.",
-        __edb_e__: "office",
-        __edb_v__: "1",
+    expect(result).toEqual({
+      cursor: null,
+      data: {
+        employee: [
+          {
+            dateHired: "2021-01-01",
+            employee: expect.any(String),
+            firstName: "John",
+            lastName: "Doe",
+            office: "HQ",
+            salary: "1",
+            team: "cool cats and kittens",
+            title: "CEO",
+          },
+        ],
+        office: [
+          {
+            address: "123 Main St.",
+            city: "Seattle",
+            country: "USA",
+            office: "HQ",
+            state: "WA",
+            zip: "98101",
+          },
+        ],
       },
-    ]);
+    });
   });
 });
