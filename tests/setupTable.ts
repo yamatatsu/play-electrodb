@@ -1,8 +1,30 @@
-module.exports = {
-  basePort: 8000,
-  tables: [
-    {
-      TableName: "electro",
+import {
+  DynamoDBClient,
+  CreateTableCommand,
+  ListTablesCommand,
+} from "@aws-sdk/client-dynamodb";
+
+const client = new DynamoDBClient({
+  endpoint: "http://127.0.0.1:8000",
+  region: "local",
+  credentials: {
+    accessKeyId: "fakeMyKeyId",
+    secretAccessKey: "fakeSecretAccessKey",
+  },
+});
+
+const tableName = "electro";
+
+beforeAll(async () => {
+  const { TableNames } = await client.send(new ListTablesCommand({}));
+  console.info({ TableNames });
+
+  if (TableNames?.includes(tableName)) {
+    return;
+  }
+  await client.send(
+    new CreateTableCommand({
+      TableName: tableName,
       KeySchema: [
         { AttributeName: "pk", KeyType: "HASH" },
         { AttributeName: "sk", KeyType: "RANGE" },
@@ -24,6 +46,6 @@ module.exports = {
         },
       ],
       BillingMode: "PAY_PER_REQUEST",
-    },
-  ],
-};
+    }),
+  );
+});
