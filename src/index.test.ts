@@ -1,3 +1,4 @@
+import { test, expect } from "vitest";
 import { randomUUID } from "node:crypto";
 import { Temporal } from "@js-temporal/polyfill";
 import { User, Workspace, Gateway } from "./db/index.js";
