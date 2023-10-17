@@ -6,9 +6,11 @@ import user from "./entities/user.js";
 import userWorkspace from "./entities/userWorkspace.js";
 import workspace from "./entities/workspace.js";
 import gateway from "./entities/gateway.js";
+import alertSetting from "./entities/alertThreshold.js";
+import alert from "./entities/alert.js";
+import alertCurrent from "./entities/alertCurrent.js";
 import sensorData from "./entities/sensorData.js";
 import sensorDataLatest from "./entities/sensorDataLatest.js";
-import alert from "./entities/alert.js";
 import wether from "./entities/wether.js";
 
 type UserItem = EntityItem<typeof user>;
@@ -16,6 +18,7 @@ type UserWorkspaceItem = EntityItem<typeof userWorkspace>;
 type WorkspaceItem = EntityItem<typeof workspace>;
 type GatewayItem = EntityItem<typeof gateway>;
 type SensorDataItem = EntityItem<typeof sensorData>;
+type AlertItem = EntityItem<typeof alert>;
 
 const table = "electro";
 const client = new DynamoDBClient({
@@ -33,9 +36,11 @@ export const service = new Service(
     userWorkspace,
     workspace,
     gateway,
+    alertSetting,
+    alert,
+    alertCurrent,
     sensorData,
     sensorDataLatest,
-    alert,
     wether,
   },
   {
@@ -115,29 +120,13 @@ export const Workspace = {
   ) => {
     await service.entities.gateway
       .patch({ gatewayId })
-      .set({ workspaceId, registeredBy: userId })
+      .set({ workspaceId, attachedBy: userId })
       .go();
   },
 
-  get: async (
-    workspaceId: string,
-  ): Promise<{
-    workspace: WorkspaceItem;
-    gateways: GatewayItem[];
-  }> => {
-    const { data } = await service.collections.workspace({ workspaceId }).go();
-
-    if (data.workspace.length === 0) {
-      throw new Error(`workspace not found: ${workspaceId}`);
-    }
-    if (data.workspace.length > 1) {
-      throw new Error(`workspace is not unique: ${workspaceId}`);
-    }
-
-    return {
-      workspace: data.workspace[0],
-      gateways: data.gateway,
-    };
+  get: async (workspaceId: string): Promise<WorkspaceItem | null> => {
+    const { data } = await service.entities.workspace.get({ workspaceId }).go();
+    return data;
   },
 };
 
@@ -165,26 +154,41 @@ export const Gateway = {
     sensorUnitId: string;
     timestamp: Temporal.ZonedDateTime;
     temperature: number;
+    attached: boolean;
   }): Promise<void> => {
     const data = {
       ...props,
       timestamp: props.timestamp.toString(),
     };
-    await service.transaction
-      .write(({ sensorData, sensorDataLatest }) => [
-        sensorData.create(data).commit(),
-        sensorDataLatest.create(data).commit(),
-      ])
+    if (props.attached) {
+      await service.transaction
+        .write(({ sensorData, sensorDataLatest }) => [
+          sensorData.create(data).commit(),
+          sensorDataLatest.create(data).commit(),
+        ])
+        .go();
+    } else {
+      await service.entities.sensorData.create(data).go();
+    }
+  },
+
+  listByWorkspaceId: async (workspaceId: string): Promise<GatewayItem[]> => {
+    const { data } = await service.entities.gateway.query
+      .byWorkspaceId({ workspaceId })
       .go();
+    return data;
   },
 
   get: async (
     gatewayId: string,
-  ): Promise<{ gateway: GatewayItem; sensorDataList: SensorDataItem[] }> => {
+  ): Promise<{
+    gateway: GatewayItem | null;
+    sensorDataList: SensorDataItem[];
+  }> => {
     const { data } = await service.collections.gateway({ gatewayId }).go();
 
     if (data.gateway.length === 0) {
-      throw new Error(`gateway not found: ${gatewayId}`);
+      return { gateway: null, sensorDataList: [] };
     }
     if (data.gateway.length > 1) {
       throw new Error(
@@ -194,4 +198,35 @@ export const Gateway = {
 
     return { gateway: data.gateway[0], sensorDataList: data.sensorDataLatest };
   },
+};
+
+export const SensorUnit = {
+  putAlert: async (data: AlertItem) => {
+    await service.transaction
+      .write(({ alert, alertCurrent }) => [
+        alert.create(data).commit(),
+        alertCurrent.create(data).commit(),
+      ])
+      .go();
+  },
+  resolveAlert: async (data: AlertItem) => {
+    await service.transaction
+      .write(({ alert, alertCurrent }) => [
+        alert.patch(data).set({}).commit(),
+        alertCurrent.delete(data).commit(),
+      ])
+      .go();
+  },
+  putAlertThreshold: async (data: {
+    workspaceId: string;
+    gatewayId: string;
+    sensorUnitId: string;
+    temperature: number;
+  }) => {
+    await service.entities.alertSetting.put(data).go();
+  },
+};
+
+export const Alert = {
+  listByWorkspaceId: async (workspaceId: string) => {},
 };

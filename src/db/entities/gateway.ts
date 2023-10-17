@@ -29,10 +29,10 @@ export default new Entity({
       },
     },
 
-    // on registered
+    // on attaching to a workspace
     workspaceId: { type: "string" },
-    registeredBy: { type: "string" },
-    registeredAt: {
+    attachedBy: { type: "string" },
+    attachedAt: {
       type: "string",
       validate: (value: string) => {
         value && Temporal.ZonedDateTime.from(value);
@@ -60,8 +60,7 @@ export default new Entity({
       pk: { field: "pk", composite: ["gatewayId"] },
       sk: { field: "sk", composite: [] },
     },
-    workspace: {
-      collection: "workspace",
+    byWorkspaceId: {
       index: "gsi1pk-gsi1sk-index",
       pk: { field: "gsi1pk", composite: ["workspaceId"] },
       sk: { field: "gsi1sk", composite: [] },

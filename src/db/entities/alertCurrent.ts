@@ -3,7 +3,7 @@ import { Entity } from "electrodb";
 
 export default new Entity({
   model: {
-    entity: "alert",
+    entity: "alertCurrent",
     version: "1",
     service: "main",
   },
@@ -21,10 +21,6 @@ export default new Entity({
       validate: (date: string) => {
         date && Temporal.ZonedDateTime.from(date);
       },
-    },
-    status: {
-      type: ["occurring"] as const,
-      required: true,
     },
     occurred: {
       type: "map",
@@ -57,9 +53,12 @@ export default new Entity({
     },
   },
   indexes: {
-    history: {
+    byGateway: {
       pk: { field: "pk", composite: ["workspaceId"] },
-      sk: { field: "sk", composite: ["occurredAt"] },
+      sk: {
+        field: "sk",
+        composite: ["gatewayId", "sensorUnitId", "alertType", "occurredAt"],
+      },
     },
   },
 });
