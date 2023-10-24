@@ -8,37 +8,22 @@ export default new Entity({
     service: "main",
   },
   attributes: {
+    workspaceId: { type: "string", required: true },
     gatewayId: { type: "string", required: true },
     imei: { type: "string", required: true },
-    registrationCode: { type: "string", required: true },
     name: { type: "string", required: true },
-    registrationStatus: {
-      type: ["unregistered", "registered"] as const,
-      required: true,
-      default: "unregistered",
-    },
+    registrationCode: { type: "string", required: true },
+    attachedBy: { type: "string", required: true },
     sensorUnits: {
       type: "list",
       required: true,
       items: {
         type: "map",
         properties: {
-          sensorUnitId: { type: "string", required: true },
           name: { type: "string", required: true },
         },
       },
     },
-
-    // on attaching to a workspace
-    workspaceId: { type: "string" },
-    attachedBy: { type: "string" },
-    attachedAt: {
-      type: "string",
-      validate: (value: string) => {
-        value && Temporal.ZonedDateTime.from(value);
-      },
-    },
-
     createdAt: {
       type: "string",
       readOnly: true,
@@ -55,25 +40,15 @@ export default new Entity({
     },
   },
   indexes: {
-    gateway: {
-      collection: "gateway",
-      pk: { field: "pk", composite: ["gatewayId"] },
-      sk: { field: "sk", composite: [] },
-    },
     byWorkspaceId: {
-      index: "gsi1pk-gsi1sk-index",
-      pk: { field: "gsi1pk", composite: ["workspaceId"] },
-      sk: { field: "gsi1sk", composite: [] },
+      collection: "gateway",
+      pk: { field: "pk", composite: ["workspaceId"] },
+      sk: { field: "sk", composite: ["gatewayId"] },
     },
     imei: {
       index: "gsi2pk-gsi2sk-index",
       pk: { field: "gsi2pk", composite: ["imei"] },
       sk: { field: "gsi2sk", composite: [] },
-    },
-    registrationCode: {
-      index: "gsi3pk-gsi3sk-index",
-      pk: { field: "gsi3pk", composite: ["registrationCode"] },
-      sk: { field: "gsi3sk", composite: ["registrationStatus"] },
     },
   },
 });

@@ -18,9 +18,6 @@ const tableName = "electro";
 
 beforeAll(async () => {
   const { TableNames } = await client.send(new ListTablesCommand({}));
-  console.info({ TableNames });
-
-  console.log("🪴🪴🪴", TableNames);
 
   if (TableNames?.includes(tableName)) {
     return;

@@ -9,6 +9,7 @@
   },
   "license": "ISC",
   "devDependencies": {
+    "@types/aws-lambda": "^8.10.125",
     "@types/node": "^20.8.5",
     "@vitest/coverage-v8": "^0.34.6",
     "prettier": "^3.0.3",
@@ -19,6 +20,8 @@
     "@aws-sdk/client-dynamodb": "^3.428.0",
     "@aws-sdk/lib-dynamodb": "^3.428.0",
     "@js-temporal/polyfill": "^0.4.4",
-    "electrodb": "^2.10.3"
+    "electrodb": "^2.10.3",
+    "neverthrow": "^6.1.0",
+    "zod": "^3.22.4"
   }
 }

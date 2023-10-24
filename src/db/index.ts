@@ -1,22 +1,26 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, randomInt } from "node:crypto";
 import { Temporal } from "@js-temporal/polyfill";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import NT from "neverthrow";
 import { Service, EntityItem } from "electrodb";
 import user from "./entities/user.js";
 import userWorkspace from "./entities/userWorkspace.js";
 import workspace from "./entities/workspace.js";
 import gateway from "./entities/gateway.js";
+import gatewayPreAttached from "./entities/gatewayPreAttached.js";
 import alertSetting from "./entities/alertThreshold.js";
 import alert from "./entities/alert.js";
 import alertCurrent from "./entities/alertCurrent.js";
 import sensorData from "./entities/sensorData.js";
 import sensorDataLatest from "./entities/sensorDataLatest.js";
 import wether from "./entities/wether.js";
+import { NotFoundError, SystemError } from "../errors/index.js";
 
 type UserItem = EntityItem<typeof user>;
 type UserWorkspaceItem = EntityItem<typeof userWorkspace>;
 type WorkspaceItem = EntityItem<typeof workspace>;
 type GatewayItem = EntityItem<typeof gateway>;
+type GatewayPreAttachedItem = EntityItem<typeof gatewayPreAttached>;
 type SensorDataItem = EntityItem<typeof sensorData>;
 type AlertItem = EntityItem<typeof alert>;
 
@@ -36,6 +40,7 @@ export const service = new Service(
     userWorkspace,
     workspace,
     gateway,
+    gatewayPreAttached,
     alertSetting,
     alert,
     alertCurrent,
@@ -115,88 +120,103 @@ export const Workspace = {
 
   attachGateway: async (
     workspaceId: string,
-    gatewayId: string,
+    _gatewayPreAttached: GatewayPreAttachedItem,
     userId: string,
   ) => {
-    await service.entities.gateway
-      .patch({ gatewayId })
-      .set({ workspaceId, attachedBy: userId })
+    await service.transaction
+      .write(({ gatewayPreAttached, gateway }) => [
+        gatewayPreAttached
+          .delete({ registrationCode: _gatewayPreAttached.registrationCode })
+          .commit(),
+        gateway
+          .create({ ..._gatewayPreAttached, workspaceId, attachedBy: userId })
+          .commit(),
+      ])
       .go();
   },
 
-  get: async (workspaceId: string): Promise<WorkspaceItem | null> => {
-    const { data } = await service.entities.workspace.get({ workspaceId }).go();
-    return data;
+  get: (
+    workspaceId: string,
+  ): NT.ResultAsync<WorkspaceItem, NotFoundError | SystemError> => {
+    return NT.fromPromise(
+      service.entities.workspace.get({ workspaceId }).go(),
+      (err) => new SystemError(err),
+    ).andThen((res) => {
+      if (!res.data) {
+        return NT.err(new NotFoundError("workspace"));
+      }
+      return NT.ok(res.data);
+    });
   },
 };
 
 export const Gateway = {
-  create: async (imei: string, gatewayName: string): Promise<GatewayItem> => {
+  create: (
+    imei: string,
+    gatewayName: string,
+  ): NT.ResultAsync<GatewayPreAttachedItem, SystemError> => {
+    const registrationCode = "A" + randomInt(99999).toString().padStart(5, "0");
     const uuid = randomUUID();
-    const res = await service.entities.gateway
-      .create({
-        gatewayId: `gw-${uuid}`,
-        imei: imei,
-        name: gatewayName,
-        registrationCode: "test", // TODO: should adding feature to consume registration code
-        sensorUnits: [...Array(6)].map((_, i) => ({
-          sensorUnitId: `su-${uuid}-${i + 1}`,
-          name: `sensor unit ${i + 1}`,
-        })),
-      })
-      .go();
 
-    return res.data;
+    return NT.fromPromise(
+      service.entities.gatewayPreAttached
+        .create({
+          registrationCode,
+          gatewayId: `gw-${uuid}`,
+          imei: imei,
+          name: gatewayName,
+          sensorUnits: [...Array(6)].map((_, i) => ({
+            sensorUnitId: `su-${uuid}-${i + 1}`,
+            name: `sensor unit ${i + 1}`,
+          })),
+        })
+        .go(),
+      (err) => new SystemError(err),
+    ).map((res) => res.data);
   },
 
   createSensorData: async (props: {
     gatewayId: string;
-    sensorUnitId: string;
+    sensorUnitIndex: number;
     timestamp: Temporal.ZonedDateTime;
     temperature: number;
     attached: boolean;
   }): Promise<void> => {
-    const data = {
-      ...props,
-      timestamp: props.timestamp.toString(),
-    };
-    if (props.attached) {
-      await service.transaction
-        .write(({ sensorData, sensorDataLatest }) => [
-          sensorData.create(data).commit(),
-          sensorDataLatest.create(data).commit(),
-        ])
-        .go();
-    } else {
-      await service.entities.sensorData.create(data).go();
-    }
+    // const data = {
+    //   ...props,
+    //   timestamp: props.timestamp.toString(),
+    // };
+    // if (props.attached) {
+    //   await service.transaction
+    //     .write(({ sensorData, sensorDataLatest }) => [
+    //       sensorData.create(data).commit(),
+    //       sensorDataLatest.create(data).commit(),
+    //     ])
+    //     .go();
+    // } else {
+    //   await service.entities.sensorData.create(data).go();
+    // }
   },
 
-  listByWorkspaceId: async (workspaceId: string): Promise<GatewayItem[]> => {
-    const { data } = await service.entities.gateway.query
-      .byWorkspaceId({ workspaceId })
-      .go();
-    return data;
-  },
-
-  get: async (
-    gatewayId: string,
-  ): Promise<{
-    gateway: GatewayItem | null;
-    sensorDataList: SensorDataItem[];
-  }> => {
-    const { data } = await service.collections.gateway({ gatewayId }).go();
-
-    if (data.gateway.length === 0) {
-      return { gateway: null, sensorDataList: [] };
-    }
-    if (data.gateway.length > 1) {
-      throw new Error(
-        `gateway is not unique: ${gatewayId}, length ${data.gateway.length}`,
-      );
-    }
-
-    return { gateway: data.gateway[0], sensorDataList: data.sensorDataLatest };
+  listByWorkspace: (
+    workspace: WorkspaceItem,
+  ): NT.ResultAsync<GatewayItem[], SystemError> => {
+    // return NT.fromPromise(
+    //   service.collections.gateway({ workspaceId: workspace.workspaceId }).go(),
+    //   (err) => new SystemError(err),
+    // ).map((res) => {
+    //   const {gateway, sensorDataLatest} = res.data
+    //   sensorDataLatest.reduce((acc, sensorData) => {
+    //     sensorData.
+    //   }, {}
+    //   return
+    // });
+    return NT.fromPromise(
+      service.entities.gateway.query
+        .byWorkspaceId({ workspaceId: workspace.workspaceId })
+        .go(),
+      (err) => new SystemError(err),
+    ).map((res) => res.data);
   },
 };
 
@@ -220,7 +240,7 @@ export const SensorUnit = {
   putAlertThreshold: async (data: {
     workspaceId: string;
     gatewayId: string;
-    sensorUnitId: string;
+    sensorUnitIndex: number;
     temperature: number;
   }) => {
     await service.entities.alertSetting.put(data).go();

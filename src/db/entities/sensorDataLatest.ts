@@ -8,8 +8,9 @@ export default new Entity({
     service: "main",
   },
   attributes: {
+    workspaceId: { type: "string", required: true },
     gatewayId: { type: "string", required: true },
-    sensorUnitId: { type: "string", required: true },
+    sensorUnitIndex: { type: "number", required: true },
     timestamp: {
       type: "string",
       required: true,
@@ -22,8 +23,8 @@ export default new Entity({
   indexes: {
     sensorData: {
       collection: "gateway",
-      pk: { field: "pk", composite: ["gatewayId"] },
-      sk: { field: "sk", composite: ["sensorUnitId"] },
+      pk: { field: "pk", composite: ["workspaceId"] },
+      sk: { field: "sk", composite: ["gatewayId", "sensorUnitIndex"] },
     },
   },
 });

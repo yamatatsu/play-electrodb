@@ -3,15 +3,25 @@ import { Entity } from "electrodb";
 
 export default new Entity({
   model: {
-    entity: "alertThreshold",
+    entity: "gatewayPreAttached",
     version: "1",
     service: "main",
   },
   attributes: {
-    workspaceId: { type: "string", required: true },
+    registrationCode: { type: "string", required: true },
     gatewayId: { type: "string", required: true },
-    sensorUnitIndex: { type: "number", required: true },
-    temperature: { type: "number", required: true },
+    imei: { type: "string", required: true },
+    name: { type: "string", required: true },
+    sensorUnits: {
+      type: "list",
+      required: true,
+      items: {
+        type: "map",
+        properties: {
+          name: { type: "string", required: true },
+        },
+      },
+    },
     createdAt: {
       type: "string",
       readOnly: true,
@@ -28,9 +38,10 @@ export default new Entity({
     },
   },
   indexes: {
-    sensorUnit: {
-      pk: { field: "pk", composite: ["workspaceId"] },
-      sk: { field: "sk", composite: ["gatewayId", "sensorUnitIndex"] },
+    registrationCode: {
+      collection: "registrationCode",
+      pk: { field: "pk", composite: ["registrationCode"] },
+      sk: { field: "sk", composite: [] },
     },
   },
 });

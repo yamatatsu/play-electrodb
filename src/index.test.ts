@@ -18,7 +18,7 @@ test("show pages after logged in", async () => {
   const gateway = await Gateway.create("test-imei", "test-gatewayName");
   await Gateway.createSensorData({
     gatewayId: gateway.gatewayId,
-    sensorUnitId: gateway.sensorUnits[0].sensorUnitId,
+    sensorUnitIndex: 0,
     timestamp: Temporal.Now.zonedDateTimeISO(),
     temperature: 0,
     attached: false,
@@ -52,7 +52,7 @@ test("show list of gateways", async () => {
   const gateway = await Gateway.create("test-imei", "test-gatewayName");
   await Gateway.createSensorData({
     gatewayId: gateway.gatewayId,
-    sensorUnitId: gateway.sensorUnits[0].sensorUnitId,
+    sensorUnitIndex: 0,
     timestamp: Temporal.Now.zonedDateTimeISO(),
     temperature: 0,
     attached: false,
@@ -69,7 +69,7 @@ test("show list of gateways", async () => {
   // send sensor data
   await Gateway.createSensorData({
     gatewayId: gateway.gatewayId,
-    sensorUnitId: gateway.sensorUnits[1].sensorUnitId,
+    sensorUnitIndex: 1,
     timestamp: Temporal.Now.zonedDateTimeISO(),
     temperature: 1,
     attached: true,
@@ -134,14 +134,14 @@ test("show list of alerts", async () => {
   SensorUnit.putAlertThreshold({
     workspaceId,
     gatewayId: gateway.gatewayId,
-    sensorUnitId: gateway.sensorUnits[0].sensorUnitId,
+    sensorUnitIndex: 0,
     temperature: 0,
   });
 
   // send sensor data
   await Gateway.createSensorData({
     gatewayId: gateway.gatewayId,
-    sensorUnitId: gateway.sensorUnits[1].sensorUnitId,
+    sensorUnitIndex: 1,
     timestamp: Temporal.Now.zonedDateTimeISO(),
     temperature: 1,
     attached: true,

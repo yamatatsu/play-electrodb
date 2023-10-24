@@ -9,7 +9,7 @@ export default new Entity({
   },
   attributes: {
     gatewayId: { type: "string", required: true },
-    sensorUnitId: { type: "string", required: true },
+    sensorUnitIndex: { type: "number", required: true },
     timestamp: {
       type: "string",
       required: true,
@@ -22,7 +22,7 @@ export default new Entity({
   indexes: {
     sensorData: {
       pk: { field: "pk", composite: ["gatewayId"] },
-      sk: { field: "sk", composite: ["sensorUnitId", "timestamp"] },
+      sk: { field: "sk", composite: ["sensorUnitIndex", "timestamp"] },
     },
   },
 });
