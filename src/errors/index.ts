@@ -1,29 +1,17 @@
-export type MyError = SystemError | NotFoundError;
+export type MyError = SystemError | BadRequestError | NotFoundError;
 
-class BaseError extends Error {
-  payload?: Record<string, unknown>;
-  constructor(message: string, payload?: Record<string, unknown>) {
-    super(message, { cause: payload });
-    this.name = this.constructor.name;
-    Error.captureStackTrace(this, this.constructor);
-    this.payload = payload;
-  }
-}
+export type SystemError = {
+  name: "SystemError";
+  error: unknown;
+};
 
-export class SystemError extends BaseError {
-  constructor(error: unknown) {
-    super("Internal Server Error", { error });
-  }
-}
+export type BadRequestError = {
+  name: "BadRequestError";
+  payload: unknown;
+};
 
-export class BadRequestError extends BaseError {
-  constructor(payload?: Record<string, unknown>) {
-    super("Bad Request", { ...payload });
-  }
-}
-
-export class NotFoundError extends BaseError {
-  constructor(resourceName: string, payload?: Record<string, unknown>) {
-    super("Not Found", { ...payload, resourceName });
-  }
-}
+export type NotFoundError = {
+  name: "NotFoundError";
+  resourceName: string;
+  payload: unknown;
+};

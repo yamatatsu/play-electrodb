@@ -1,7 +1,14 @@
 import { test, expect } from "vitest";
 import { randomUUID } from "node:crypto";
 import { Temporal } from "@js-temporal/polyfill";
-import { User, Workspace, Gateway, Alert, SensorUnit } from "./db/index.js";
+import {
+  UserTable,
+  Workspace,
+  GatewayTable,
+  Alert,
+  SensorUnit,
+} from "./db/index.js";
+import NT from "neverthrow";
 
 const expectUserId = expect.stringMatching(/^test-userId-/);
 const expectWorkspaceId = expect.stringMatching(/^ws-/);
@@ -15,8 +22,10 @@ test("show pages after logged in", async () => {
   // GIVEN
 
   // manufacture a gateway
-  const gateway = await Gateway.create("test-imei", "test-gatewayName");
-  await Gateway.createSensorData({
+  const gateway = (
+    await GatewayTable.create("test-imei", "test-gatewayName")
+  )._unsafeUnwrap();
+  await GatewayTable.createSensorData({
     gatewayId: gateway.gatewayId,
     sensorUnitIndex: 0,
     timestamp: Temporal.Now.zonedDateTimeISO(),
@@ -25,12 +34,15 @@ test("show pages after logged in", async () => {
   });
 
   // create an user and a workspace, and attach the gateway to the workspace
-  const user = await User.create(`test-userId-${randomUUID()}`, "test-email");
+  const user = await UserTable.create(
+    `test-userId-${randomUUID()}`,
+    "test-email",
+  );
   const { workspaceId } = await Workspace.createAndAttachUser(
     "test-workspaceName",
     user.userId,
   );
-  await Workspace.attachGateway(workspaceId, gateway.gatewayId, user.userId);
+  await Workspace.attachGateway(workspaceId, gateway, user.userId);
 
   // WHEN - THEN
 
@@ -49,8 +61,10 @@ test("show list of gateways", async () => {
   // GIVEN
 
   // manufacture a gateway and send test sensor data
-  const gateway = await Gateway.create("test-imei", "test-gatewayName");
-  await Gateway.createSensorData({
+  const gateway = (
+    await GatewayTable.create("test-imei", "test-gatewayName")
+  )._unsafeUnwrap();
+  await GatewayTable.createSensorData({
     gatewayId: gateway.gatewayId,
     sensorUnitIndex: 0,
     timestamp: Temporal.Now.zonedDateTimeISO(),
@@ -59,15 +73,18 @@ test("show list of gateways", async () => {
   });
 
   // create an user and a workspace, and attach the gateway to the workspace
-  const user = await User.create(`test-userId-${randomUUID()}`, "test-email");
-  const { workspaceId } = await Workspace.createAndAttachUser(
+  const user = await UserTable.create(
+    `test-userId-${randomUUID()}`,
+    "test-email",
+  );
+  const workspace = await Workspace.createAndAttachUser(
     "test-workspaceName",
     user.userId,
   );
-  await Workspace.attachGateway(workspaceId, gateway.gatewayId, user.userId);
+  await Workspace.attachGateway(workspace.workspaceId, gateway, user.userId);
 
   // send sensor data
-  await Gateway.createSensorData({
+  await GatewayTable.createSensorData({
     gatewayId: gateway.gatewayId,
     sensorUnitIndex: 1,
     timestamp: Temporal.Now.zonedDateTimeISO(),
@@ -78,7 +95,7 @@ test("show list of gateways", async () => {
   // WHEN - THEN
 
   // GET /workspaces/${workspaceId}/gateways
-  const resGateways = await Gateway.listByWorkspaceId(workspaceId);
+  const resGateways = await GatewayTable.listByWorkspace(workspace);
   expect(resGateways).toEqual([
     {
       gatewayId: gateway.gatewayId,
@@ -102,7 +119,7 @@ test("show list of gateways", async () => {
   ]);
 
   // GET /workspaces/${workspaceId}/gateways/${gatewayId}
-  const resGateway = await Gateway.get(gateway.gatewayId);
+  const resGateway = await GatewayTable.get(gateway.gatewayId);
   expect(resGateway).toEqual({
     gateway: resGateways[0],
     sensorDataList: [
@@ -120,10 +137,13 @@ test("show list of alerts", async () => {
   // GIVEN
 
   // manufacture a gateway and send test sensor data
-  const gateway = await Gateway.create("test-imei", "test-gatewayName");
+  const gateway = await GatewayTable.create("test-imei", "test-gatewayName");
 
   // create an user and a workspace, and attach the gateway to the workspace
-  const user = await User.create(`test-userId-${randomUUID()}`, "test-email");
+  const user = await UserTable.create(
+    `test-userId-${randomUUID()}`,
+    "test-email",
+  );
   const { workspaceId } = await Workspace.createAndAttachUser(
     "test-workspaceName",
     user.userId,
@@ -139,7 +159,7 @@ test("show list of alerts", async () => {
   });
 
   // send sensor data
-  await Gateway.createSensorData({
+  await GatewayTable.createSensorData({
     gatewayId: gateway.gatewayId,
     sensorUnitIndex: 1,
     timestamp: Temporal.Now.zonedDateTimeISO(),

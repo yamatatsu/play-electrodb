@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "vitest --coverage",
-    "test:no-cov": "vitest"
+    "test:no-cov": "vitest",
+    "type-check": "tsc --noEmit"
   },
   "license": "ISC",
   "devDependencies": {

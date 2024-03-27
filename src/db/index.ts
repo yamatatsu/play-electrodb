@@ -1,4 +1,3 @@
-import { randomUUID, randomInt } from "node:crypto";
 import { Temporal } from "@js-temporal/polyfill";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import NT from "neverthrow";
@@ -12,16 +11,17 @@ import alertSetting from "./entities/alertThreshold.js";
 import alert from "./entities/alert.js";
 import alertCurrent from "./entities/alertCurrent.js";
 import sensorData from "./entities/sensorData.js";
-import sensorDataLatest from "./entities/sensorDataLatest.js";
 import wether from "./entities/wether.js";
 import { NotFoundError, SystemError } from "../errors/index.js";
+import { Gateway, GatewayPreAttached } from "../models/gateway.js";
+import { User } from "../models/user.js";
+import { Workspace } from "../models/workspace.js";
+import { SensorData } from "../models/sensor-data.js";
 
-type UserItem = EntityItem<typeof user>;
 type UserWorkspaceItem = EntityItem<typeof userWorkspace>;
 type WorkspaceItem = EntityItem<typeof workspace>;
 type GatewayItem = EntityItem<typeof gateway>;
 type GatewayPreAttachedItem = EntityItem<typeof gatewayPreAttached>;
-type SensorDataItem = EntityItem<typeof sensorData>;
 type AlertItem = EntityItem<typeof alert>;
 
 const table = "electro";
@@ -45,7 +45,6 @@ export const service = new Service(
     alert,
     alertCurrent,
     sensorData,
-    sensorDataLatest,
     wether,
   },
   {
@@ -57,21 +56,25 @@ export const service = new Service(
   },
 );
 
-export const User = {
-  create: async (userId: string, email: string): Promise<UserItem> => {
-    const res = await service.entities.user.create({ userId, email }).go();
-    return res.data;
+export const UserTable = {
+  create: async (user: User): Promise<void> => {
+    await service.entities.user.create(user).go();
   },
 
   createAndAttachToWorkspace: async (
-    userId: string,
-    email: string,
-    workspaceId: string,
+    _user: User,
+    workspace: Workspace,
   ): Promise<void> => {
     await service.transaction
       .write(({ user, userWorkspace }) => [
-        user.create({ userId, email }).commit(),
-        userWorkspace.create({ userId, workspaceId, role: "admin" }).commit(),
+        user.create(_user).commit(),
+        userWorkspace
+          .create({
+            userId: _user.userId,
+            workspaceId: workspace.workspaceId,
+            role: "admin",
+          })
+          .commit(),
       ])
       .go();
   },
@@ -79,7 +82,7 @@ export const User = {
   get: async (
     userId: string,
   ): Promise<{
-    user: UserItem;
+    user: User;
     workspaces: UserWorkspaceItem[];
   }> => {
     const { data } = await service.collections.user({ userId }).go();
@@ -98,124 +101,74 @@ export const User = {
   },
 };
 
-export const Workspace = {
-  createAndAttachUser: async (
-    name: string,
-    userId: string,
-  ): Promise<{ workspaceId: string }> => {
-    const workspaceId = `ws-${randomUUID()}`;
-    const res = await service.transaction
+export const WorkspaceTable = {
+  createAndAttachUser: async (_workspace: Workspace): Promise<void> => {
+    await service.transaction
       .write(({ workspace, userWorkspace }) => [
-        workspace
-          .create({ workspaceId, name, createdBy: userId })
-          .commit({ response: "all_old" }),
+        workspace.create(_workspace).commit({ response: "all_old" }),
         userWorkspace
-          .create({ userId, workspaceId, role: "admin" })
+          .create({
+            userId: _workspace.createdBy,
+            workspaceId: _workspace.workspaceId,
+            role: "admin",
+          })
           .commit({ response: "all_old" }),
       ])
       .go();
-
-    return { workspaceId };
   },
 
-  attachGateway: async (
-    workspaceId: string,
-    _gatewayPreAttached: GatewayPreAttachedItem,
-    userId: string,
-  ) => {
+  attachGateway: async (_gateway: Gateway) => {
     await service.transaction
       .write(({ gatewayPreAttached, gateway }) => [
         gatewayPreAttached
-          .delete({ registrationCode: _gatewayPreAttached.registrationCode })
+          .delete({ registrationCode: _gateway.registrationCode })
           .commit(),
-        gateway
-          .create({ ..._gatewayPreAttached, workspaceId, attachedBy: userId })
-          .commit(),
+        gateway.create(_gateway).commit(),
       ])
       .go();
   },
 
   get: (
     workspaceId: string,
-  ): NT.ResultAsync<WorkspaceItem, NotFoundError | SystemError> => {
-    return NT.fromPromise(
+  ): NT.ResultAsync<Workspace, NotFoundError | SystemError> => {
+    return wrapForSafe(
       service.entities.workspace.get({ workspaceId }).go(),
-      (err) => new SystemError(err),
     ).andThen((res) => {
       if (!res.data) {
-        return NT.err(new NotFoundError("workspace"));
+        return NT.err({
+          name: "NotFoundError",
+          resourceName: "workspace",
+          payload: { workspaceId },
+        } as const);
       }
       return NT.ok(res.data);
     });
   },
 };
 
-export const Gateway = {
+export const GatewayTable = {
   create: (
-    imei: string,
-    gatewayName: string,
+    gateway: GatewayPreAttached,
   ): NT.ResultAsync<GatewayPreAttachedItem, SystemError> => {
-    const registrationCode = "A" + randomInt(99999).toString().padStart(5, "0");
-    const uuid = randomUUID();
-
     return NT.fromPromise(
-      service.entities.gatewayPreAttached
-        .create({
-          registrationCode,
-          gatewayId: `gw-${uuid}`,
-          imei: imei,
-          name: gatewayName,
-          sensorUnits: [...Array(6)].map((_, i) => ({
-            sensorUnitId: `su-${uuid}-${i + 1}`,
-            name: `sensor unit ${i + 1}`,
-          })),
-        })
-        .go(),
-      (err) => new SystemError(err),
+      service.entities.gatewayPreAttached.create(gateway).go(),
+      (error) => ({ name: "SystemError", error }) as const,
     ).map((res) => res.data);
   },
 
-  createSensorData: async (props: {
-    gatewayId: string;
-    sensorUnitIndex: number;
-    timestamp: Temporal.ZonedDateTime;
-    temperature: number;
-    attached: boolean;
-  }): Promise<void> => {
-    // const data = {
-    //   ...props,
-    //   timestamp: props.timestamp.toString(),
-    // };
-    // if (props.attached) {
-    //   await service.transaction
-    //     .write(({ sensorData, sensorDataLatest }) => [
-    //       sensorData.create(data).commit(),
-    //       sensorDataLatest.create(data).commit(),
-    //     ])
-    //     .go();
-    // } else {
-    //   await service.entities.sensorData.create(data).go();
-    // }
+  createSensorData: async (sensorData: SensorData): Promise<void> => {
+    const data = { ...sensorData, timestamp: sensorData.timestamp.toString() };
+    await service.entities.sensorData.create(data).go();
   },
 
   listByWorkspace: (
-    workspace: WorkspaceItem,
+    workspace: Workspace,
   ): NT.ResultAsync<GatewayItem[], SystemError> => {
-    // return NT.fromPromise(
-    //   service.collections.gateway({ workspaceId: workspace.workspaceId }).go(),
-    //   (err) => new SystemError(err),
-    // ).map((res) => {
-    //   const {gateway, sensorDataLatest} = res.data
-    //   sensorDataLatest.reduce((acc, sensorData) => {
-    //     sensorData.
-    //   }, {}
-    //   return
-    // });
     return NT.fromPromise(
       service.entities.gateway.query
         .byWorkspaceId({ workspaceId: workspace.workspaceId })
         .go(),
-      (err) => new SystemError(err),
+      (error) => ({ name: "SystemError", error }) as const,
     ).map((res) => res.data);
   },
 };
@@ -250,3 +203,12 @@ export const SensorUnit = {
 export const Alert = {
   listByWorkspaceId: async (workspaceId: string) => {},
 };
+
+function wrapForSafe<Result>(
+  promiseResult: Promise<Result>,
+): NT.ResultAsync<Result, SystemError> {
+  return NT.fromPromise(
+    promiseResult,
+    (error) => ({ name: "SystemError", error }) as const,
+  );
+}

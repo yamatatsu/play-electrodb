@@ -1,6 +1,6 @@
 import { test, expect } from "vitest";
 import NT from "neverthrow";
-import { Workspace, Gateway } from "../../../db/index.js";
+import { Workspace, GatewayTable } from "../../../db/index.js";
 import { BadRequestError, NotFoundError } from "../../../errors/index.js";
 import impl from "./impl.js";
 
@@ -43,7 +43,7 @@ test("list gateways", async () => {
     "test workspace",
     "test-userId",
   );
-  const gw1 = await Gateway.create("test-imei", "test-gateway");
+  const gw1 = await GatewayTable.create("test-imei", "test-gateway");
   await Workspace.attachGateway(
     ws.workspaceId,
     gw1._unsafeUnwrap(),

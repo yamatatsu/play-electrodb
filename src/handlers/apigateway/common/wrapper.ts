@@ -23,6 +23,13 @@ export default (
           body: "Internal Server Error",
         };
 
+      case "BadRequestError":
+        console.info(result.error);
+        return {
+          statusCode: 400,
+          body: JSON.stringify(result.error.payload),
+        };
+
       case "NotFoundError":
         console.info(result.error);
         return {
@@ -31,6 +38,7 @@ export default (
         };
 
       default:
+        const ___: never = result.error;
         console.error(result.error);
         return {
           statusCode: 500,

@@ -1,6 +1,6 @@
 import type { APIGatewayProxyEvent } from "aws-lambda";
 import zod from "zod";
-import { Workspace, Gateway } from "../../../db/index.js";
+import { Workspace, GatewayTable } from "../../../db/index.js";
 import { parsePathParameters } from "../common/event-util.js";
 
 const paramsSchema = zod.object({
@@ -10,4 +10,4 @@ const paramsSchema = zod.object({
 export default (event: Pick<APIGatewayProxyEvent, "pathParameters">) =>
   parsePathParameters(event, paramsSchema)
     .asyncAndThen((params) => Workspace.get(params.workspaceId))
-    .andThen((workspace) => Gateway.listByWorkspace(workspace));
+    .andThen((workspace) => GatewayTable.listByWorkspace(workspace));

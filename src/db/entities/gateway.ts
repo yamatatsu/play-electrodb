@@ -41,7 +41,6 @@ export default new Entity({
   },
   indexes: {
     byWorkspaceId: {
-      collection: "gateway",
       pk: { field: "pk", composite: ["workspaceId"] },
       sk: { field: "sk", composite: ["gatewayId"] },
     },
